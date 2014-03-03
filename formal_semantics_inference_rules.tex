@@ -1,0 +1,1235 @@
+\documentclass{article}
+
+\usepackage {mathpartir}
+
+\newcommand\letin[3]{let\ #1\ =\ #2\ in\ #3}
+\newcommand\letrecin[2]{let\ rec\ #1\ in\ #2}
+\newcommand\exprifthenelse[3]{if\ #1\ then\ #2\ else\ #3}
+\newcommand\match[5]{match\ #1\ with\ #2 \rightarrow #3 \mid #4 \rightarrow #5}
+\newcommand\annot[2]{#1\ :\ #2}
+\newcommand\rec[3]{{\tt rec} #1.#2.#3}
+\newcommand\closure[3]{< \lambda #1.#2, #3 >}
+\newcommand\recclosure[4]{< \rec{#1}{#2}{#3}, #4 >}
+
+\newcommand\isfiltered[3]{#1, #2 \vdash_p #3}
+\newcommand\isfilteredtoi[3]{#1, #2 \vdash^{oi}_p #3}
+\newcommand\isfilteredtc[3]{#1, #2 \vdash^{c}_p #3}
+\newcommand\isfilteredti[3]{#1, #2 \vdash^{i}_p #3}
+\newcommand\isfilteredta[3]{#1, #2 \vdash^{a}_p #3}
+
+\newcommand\semop[3]{#1 \vdash #2 \mapsto #3} % sémantique opérationnelle
+\newcommand\seminj[5]{#1 \vdash_{#2 : #3} #4 \mapsto #5} % sém. op. d'injection de faute
+\newcommand\semoi[3]{#1 \vdash^{oi} #2 \mapsto #3} % sémantique sur-instrumentée
+\newcommand\semi[3]{#1 \vdash^{i} #2 \mapsto #3} % sémantique instrumentée
+\newcommand\semim[3]{#1 \vdash^{im} #2 \mapsto #3} % sémantique instrumentée multiple
+\newcommand\semc[3]{#1 \vdash^{c} #2 \mapsto #3} % sémantique collectrice
+\newcommand\sema[3]{#1 \vdash^{a} #2 \mapsto #3} % sémantique abstraite
+
+
+\newcommand\oitval[2]{\ [\ #1\ \mid\ #2\ ]}
+\newcommand\oival[2]{\ [\ #1\ \mid\ #2\ ]}
+\newcommand\itval[2]{\ [\ #1\ \mid\ #2\ ]}
+\newcommand\ival[2]{\ [\ #1\ \mid\ #2\ ]}
+\newcommand\ctval[3]{\ [\ #1\ \mid\ #2\ \mid\ #3\ ]}
+\newcommand\atval[2]{\ [\ #1\ \mid\ #2\ ]}
+\newcommand\aval[2]{\ [\ #1\ \mid\ #2\ ]}
+
+
+\newcommand\conversion[3]{\uparrow_{#1}^{#2}\hspace{-4pt}(#3)}
+\newcommand\instanciation[3]{\downarrow^{#1:#2}\hspace{-4pt}(#3)}
+\newcommand\atif[3]{atif_{#1:#2}(#3)}
+\newcommand\aif[3]{aif_{#1:#2}(#3)}
+
+\begin{document}
+
+\tableofcontents
+
+\section{Language}
+$$
+\begin{array}{rll}
+e := & n\ |\ C\ |\ D(e)\ |\ (e_1, e_2) & \mbox{Constructeurs de données} \\
+     & x & \mbox{Identificateur}\\
+     & \lambda x.e\ |\ \rec{f}{x}{e} & \mbox{Fonctions (récursive ou non)}\\
+     & e_1\ e_2 & \mbox{Application}\\
+     & \letin{x}{e_1}{e_2} & \mbox{Liaison}\\
+     & \exprifthenelse{e}{e_1}{e_2} & \mbox{Expression conditionnelle}\\
+     & \match{e}{p}{e_1}{x}{e_2} & \mbox{Filtrage par motif}\\
+     & \annot{l}{e} & \mbox{Annotation d'un point d'injection}
+\end{array}
+$$
+
+\section{Operational Semantics}
+
+\subsection{Values/Environments}
+
+$$
+\begin{array}{rll}
+v := & n\ |\ b\ |\ C\ |\ D(v)\ |\ (v_1, v_2) & \mbox{Constructeurs de données} \\
+     & \closure{x}{e}{\Gamma} & \mbox{Fermeture}\\
+     & \recclosure{f}{x}{e}{\Gamma} & \mbox{Fermeture récursive}
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+\Gamma := & (x_1, v_1) \oplus \ldots \oplus (x_n, v_n) & \mbox{Environnement}
+\end{array}
+$$
+
+\subsection{Inference Rules}
+
+$$
+\inferrule [op-num]
+{  }
+{ \semop{\Gamma}{n}{n} }
+\hspace{10pt}
+\inferrule [op-ident]
+{ v = \Gamma[x] }
+{ \semop{\Gamma}{x}{v} }
+\hspace{10pt}
+\inferrule [op-abstr]
+{  }
+{ \semop{\Gamma}{\lambda x.e}{\closure{x}{e}{\Gamma}} }
+\hspace{10pt}
+\inferrule [op-abstr-rec]
+{  }
+{ \semop{\Gamma}{\rec{f}{x}{e}}{\recclosure{f}{x}{e}{\Gamma}} }
+$$
+
+$$
+\inferrule [op-apply]
+{ \semop{\Gamma}{e_1}{\closure{x}{e}{\Gamma_1}}\\\\
+  \semop{\Gamma}{e_2}{v_2}\\
+  \semop{(x,v_2) \oplus \Gamma_1}{e}{v} }
+{ \semop{\Gamma}{e_1\ e_2}{v} }
+\hspace{10pt}
+\inferrule [op-apply-rec]
+{ \semop{\Gamma}{e_1}{v_1}\\
+  v_1 = \recclosure{f}{x}{e}{\Gamma_1}\\\\
+  \semop{\Gamma}{e_2}{v_2}\\
+  \semop{(f,v_1) \oplus (x,v_2) \oplus \Gamma_1}{e}{v} }
+{ \semop{\Gamma}{e_1\ e_2}{v} }
+$$
+
+$$
+\inferrule [op-if-true]
+{ \semop{\Gamma}{e}{true} \\
+  \semop{\Gamma}{e_1}{v_1} }
+{ \semop{\Gamma}{\exprifthenelse{e}{e_1}{e_2}}{v_1} }
+\hspace{10pt}
+\inferrule [op-if-false]
+{ \semop{\Gamma}{e}{false} \\
+  \semop{\Gamma}{e_2}{v_2} }
+{ \semop{\Gamma}{\exprifthenelse{e}{e_1}{e_2}}{v_2} }
+$$
+
+$$
+\inferrule [op-constr-0]
+{  }
+{ \semop{\Gamma}{C}{C} }
+\hspace{10pt}
+\inferrule [op-constr-1]
+{ \semop{\Gamma}{e}{v} }
+{ \semop{\Gamma}{D(e)}{D(v)} }
+\hspace{10pt}
+\inferrule [op-couple]
+{ \semop{\Gamma}{e_1}{v_1} \\
+  \semop{\Gamma}{e_2}{v_2} }
+{ \semop{\Gamma}{(e_1, e_2)}{(v_1, v_2)} }
+$$
+
+$$
+\inferrule [op-match]
+{ \semop{\Gamma}{e}{v} \\
+  \isfiltered{v}{p}{\Gamma_p} \\\\
+  \semop{\Gamma_p \oplus \Gamma}{e_1}{v_1} }
+{ \semop{\Gamma}{\match{e}{p}{e_1}{x}{e_2}}{v_1} }
+\hspace{10pt}
+\inferrule [op-match-var]
+{ \semop{\Gamma}{e}{v} \\
+  \isfiltered{v}{p}{\bot} \\\\
+  \semop{(x, v) \oplus \Gamma}{e_2}{v_2} }
+{ \semop{\Gamma}{\match{e}{p}{e_1}{x}{e_2}}{v_2} }
+$$
+
+$$
+\inferrule [op-letin]
+{ \semop{\Gamma}{e_1}{v_1} \\
+  \semop{(x, v_1) \oplus \Gamma}{e_2}{v_2} }
+{ \semop{\Gamma}{\letin{x}{e_1}{e_2}}{v_2} }
+\hspace{10pt}
+\inferrule [op-annot]
+{ \semop{\Gamma}{e}{v} }
+{ \semop{\Gamma}{\annot{l}{e}}{v} }
+$$
+
+$$
+\inferrule [opm-constr-0]
+{  }
+{ \isfiltered{C}{C}{\{\}} }
+\hspace{10pt}
+\inferrule [opm-constr-1]
+{  }
+{ \isfiltered{D(v)}{D(x)}{\{(x, v)\}} }
+\hspace{10pt}
+\inferrule [opm-couple]
+{  }
+{ \isfiltered{(v_1, v_2)}{(x_1, x_2)}{\{(x_1, v_1); (x_2, v_2)\}} }
+$$
+
+$$
+\inferrule [opm-constr-0-not]
+{ p \neq C }
+{ \isfiltered{C}{p}{\bot} }
+\hspace{10pt}
+\inferrule [opm-constr-1-not]
+{ p \neq D'(\_) }
+{ \isfiltered{D(v)}{p}{\bot} }
+\hspace{10pt}
+\inferrule [opm-couple-not]
+{ p \neq (\_, \_) }
+{ \isfiltered{(v_1, v_2)}{p}{\bot} }
+$$
+
+
+\section{Operational Semantics with Injection}
+\subsection{Inference Rules}
+
+$$
+\inferrule [opinj-num]
+{  }
+{ \seminj{\Gamma}{l}{v_l}{n}{n} }
+\hspace{10pt}
+\inferrule [opinj-ident]
+{ v = \Gamma[x] }
+{ \seminj{\Gamma}{l}{v_l}{x}{v} }
+\hspace{10pt}
+\inferrule [opinj-abstr]
+{  }
+{ \seminj{\Gamma}{l}{v_l}{\lambda x.e}{\closure{x}{e}{\Gamma}} }
+\hspace{10pt}
+\inferrule [opinj-abstr-rec]
+{  }
+{ \seminj{\Gamma}{l}{v_l}{\rec{f}{x}{e}}{\recclosure{f}{x}{e}{\Gamma}} }
+$$
+
+$$
+\inferrule [opinj-apply]
+{ \seminj{\Gamma}{l}{v_l}{e_1}{\closure{x}{e}{\Gamma_1}}\\\\
+  \seminj{\Gamma}{l}{v_l}{e_2}{v_2}\\
+  \seminj{(x,v_2) \oplus \Gamma_1}{l}{v_l}{e}{v} }
+{ \seminj{\Gamma}{l}{v_l}{e_1\ e_2}{v} }
+\hspace{10pt}
+\inferrule [opinj-apply-rec]
+{ \seminj{\Gamma}{l}{v_l}{e_1}{v_1}\\
+  v_1 = \recclosure{f}{x}{e}{\Gamma_1}\\\\
+  \seminj{\Gamma}{l}{v_l}{e_2}{v_2}\\
+  \seminj{(f,v_1) \oplus
+    (x,v_2) \oplus \Gamma_1}{l}{v_l}{e}{v} }
+{ \seminj{\Gamma}{l}{v_l}{e_1\ e_2}{v} }
+$$
+
+$$
+\inferrule [opinj-if-true]
+{ \seminj{\Gamma}{l}{v_l}{e}{true} \\
+  \seminj{\Gamma}{l}{v_l}{e_1}{v_1} }
+{ \seminj{\Gamma}{l}{v_l}{\exprifthenelse{e}{e_1}{e_2}}{v_1} }
+\hspace{10pt}
+\inferrule [opinj-if-false]
+{ \seminj{\Gamma}{l}{v_l}{e}{false} \\
+  \seminj{\Gamma}{l}{v_l}{e_2}{v_2} }
+{ \seminj{\Gamma}{l}{v_l}{\exprifthenelse{e}{e_1}{e_2}}{v_2} }
+$$
+
+$$
+\inferrule [opinj-match]
+{ \seminj{\Gamma}{l}{v_l}{e}{v} \\
+  \isfiltered{v}{p}{\Gamma_p} \\\\
+  \seminj{\Gamma_p \oplus \Gamma}{l}{v_l}{e_1}{v_1} }
+{ \seminj{\Gamma}{l}{v_l}{\match{e}{p}{e_1}{x}{e_2}}{v_1} }
+\hspace{10pt}
+\inferrule [opinj-match-var]
+{ \seminj{\Gamma}{l}{v_l}{e}{v} \\
+  \isfiltered{v}{p}{\bot} \\\\
+  \seminj{(x, v) \oplus \Gamma}{l}{v_l}{e_2}{v_2} }
+{ \seminj{\Gamma}{l}{v_l}{\match{e}{p}{e_1}{x}{e_2}}{v_2} }
+$$
+
+$$
+\inferrule [opinj-constr-0]
+{  }
+{ \seminj{\Gamma}{l}{v_l}{C}{C} }
+\hspace{10pt}
+\inferrule [opinj-constr-1]
+{ \seminj{\Gamma}{l}{v_l}{e}{v} }
+{ \seminj{\Gamma}{l}{v_l}{D(e)}{D(v)} }
+\hspace{10pt}
+\inferrule [opinj-couple]
+{ \seminj{\Gamma}{l}{v_l}{e_1}{v_1} \\
+  \seminj{\Gamma}{l}{v_l}{e_2}{v_2} }
+{ \seminj{\Gamma}{l}{v_l}{(e_1, e_2)}{(v_1, v_2)} }
+$$
+
+$$
+\inferrule [opinj-letin]
+{ \seminj{\Gamma}{l}{v_l}{e_1}{v_1} \\
+  \seminj{(x, v_1) \oplus \Gamma}{l}{v_l}{e_2}{v_2} }
+{ \seminj{\Gamma}{l}{v_l}{\letin{x}{e_1}{e_2}}{v_2} }
+$$
+
+$$
+\inferrule [opinj-annot-same]
+{  }
+{ \seminj{\Gamma}{l}{v_l}{\annot{l}{e}}{v_l} }
+\hspace{10pt}
+\inferrule [opinj-annot-other]
+{ \seminj{\Gamma}{l}{v_l}{e}{v}\\ l \neq l' }
+{ \seminj{\Gamma}{l}{v_l}{\annot{l'}{e}}{v} }
+$$
+
+
+
+\section{Injection Semantics}
+\subsection{Inference Rules}
+
+$$
+\inferrule [inj-num]
+{  }
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{n}{n} }
+\hspace{10pt}
+\inferrule [inj-letin]
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{e_1}{v_1} \\
+  \seminj{(x, \conversion{}{toi}{v_1}) \oplus t\Gamma^{oi}}{l}{v_l}{e_2}{v_2} }
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{\letin{x}{e_1}{e_2}}{v_2} }
+$$
+
+$$
+\inferrule [inj-apply]
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{e_1}{\closure{x}{e}{\Gamma_1}}\\\\
+  \seminj{t\Gamma^{oi}}{l}{v_l}{e_2}{v_2}\\\\
+  \seminj{(x,\conversion{}{toi}{v_2}) \oplus \conversion{}{toi}{\Gamma_1}}{l}{v_l}{e}{v} }
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{e_1\ e_2}{v} }
+\hspace{10pt}
+\inferrule [inj-apply-rec]
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{e_1}{v_1}\\
+  v_1 = \recclosure{f}{x}{e}{\Gamma_1}\\\\
+  \seminj{t\Gamma^{oi}}{l}{v_l}{e_2}{v_2}\\\\
+  \seminj{(f,\conversion{}{toi}{v_1}) \oplus
+    (x,\conversion{}{toi}{v_2}) \oplus \conversion{}{toi}{\Gamma_1}}{l}{v_l}{e}{v} }
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{e_1\ e_2}{v} }
+$$
+
+$$
+\inferrule [inj-if-true]
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{e}{true} \\
+  \seminj{t\Gamma^{oi}}{l}{v_l}{e_1}{v_1} }
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{\exprifthenelse{e}{e_1}{e_2}}{v_1} }
+\hspace{10pt}
+\inferrule [inj-if-false]
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{e}{false} \\
+  \seminj{t\Gamma^{oi}}{l}{v_l}{e_2}{v_2} }
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{\exprifthenelse{e}{e_1}{e_2}}{v_2} }
+$$
+
+$$
+\inferrule [inj-match]
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{e}{v} \\
+  \isfiltered{v}{p}{\Gamma_p} \\\\
+  \seminj{\conversion{}{toi}{\Gamma_p} \oplus t\Gamma^{oi}}{l}{v_l}{e_1}{v_1} }
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{\match{e}{p}{e_1}{x}{e_2}}{v_1} }
+\hspace{10pt}
+\inferrule [inj-match-var]
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{e}{v} \\
+  \isfiltered{v}{p}{\bot} \\\\
+  \seminj{(x, \conversion{}{toi}{v}) \oplus t\Gamma^{oi}}{l}{v_l}{e_2}{v_2} }
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{\match{e}{p}{e_1}{x}{e_2}}{v_2} }
+$$
+
+$$
+\inferrule [inj-constr-0]
+{  }
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{C}{C} }
+\hspace{10pt}
+\inferrule [inj-constr-1]
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{e}{v} }
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{D(e)}{D(v)} }
+\hspace{10pt}
+\inferrule [inj-couple]
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{e_1}{v_1} \\
+  \seminj{t\Gamma^{oi}}{l}{v_l}{e_2}{v_2} }
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{(e_1, e_2)}{(v_1, v_2)} }
+$$
+
+$$
+\inferrule [inj-ident]
+{ v = \instanciation{l}{v_l}{t\Gamma^{oi}[x]} }
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{x}{v} }
+\hspace{10pt}
+\inferrule [inj-annot-same]
+{  }
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{\annot{l}{e}}{v_l} }
+\hspace{10pt}
+\inferrule [inj-annot-other]
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{e}{v}\\ l \neq l' }
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{\annot{l'}{e}}{v} }
+$$
+
+$$
+\inferrule [inj-abstr]
+{  }
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{\lambda x.e}{\closure{x}{e}{\instanciation{l}{v_l}{t\Gamma^{oi}}}} }
+\hspace{10pt}
+\inferrule [inj-abstr-rec]
+{  }
+{ \seminj{t\Gamma^{oi}}{l}{v_l}{\rec{f}{x}{e}}{\recclosure{f}{x}{e}{\instanciation{l}{v_l}{t\Gamma^{oi}}}} }
+$$
+
+
+
+\section{Over-Instrumented Semantics}
+\subsection{Values/Environments}
+
+$$
+\begin{array}{rll}
+tu^{oi} := & \oitval{td^{oi}}{u^{oi}} & \mbox{Valeur avec annotation de $t$-dépendances}
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+u^{oi} := & \oitval{d^{oi}}{v^{oi}} & \mbox{Valeur avec annotation de $v$-dépendances}
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+v^{oi} := & n\ |\ b\ |\ C\ |\ D(u^{oi})\ |\ (u^{oi}_1, u^{oi}_2) & \mbox{Constructeurs de données} \\
+     & \closure{x}{e}{\Gamma^{oi}} & \mbox{Fermeture}\\
+     & \recclosure{f}{x}{e}{\Gamma^{oi}} & \mbox{Fermeture récursive}
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+td^{oi} := & (l_1, tf_1); \ldots (l_n, tf_n) & \mbox{$t$-dépendances}\\
+tf : & v \rightarrow bool & \mbox{$t$-fonction d'impact}
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+d^{oi} := & (l_1, f_1); \ldots (l_n, f_n) & \mbox{$v$-dépendances}\\
+f : & v \rightarrow v & \mbox{$v$-fonction d'impact}
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+t\Gamma^{oi} := & (x_1, tu^{oi}_1); \ldots ; (x_n, tu^{oi}_n) & \mbox{$t$-environnement sur-instrumenté}
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+\Gamma^{oi} := & (x_1, u^{oi}_1); \ldots ; (x_n, u^{oi}_n) & \mbox{$v$-environnement sur-instrumenté}
+\end{array}
+$$
+
+
+\subsection{Inference Rules}
+
+$$
+\inferrule [oi-num]
+{  }
+{ \semoi{t\Gamma^{oi}}{n}{\oitval{\emptyset}{\oival{\emptyset}{n}}} }
+\hspace{10pt}
+\inferrule [oi-abstr]
+{  }
+{ \semoi{t\Gamma^{oi}}{\lambda x.e}{\oitval{\emptyset}{\oival{\emptyset}{\closure{x}{e}{\conversion{toi}{oi}{t\Gamma^{oi}}}}}} }
+$$
+$$
+\inferrule [oi-ident]
+{ tu^{oi} = t\Gamma^{oi}[x] }
+{ \semoi{t\Gamma^{oi}}{x}{tu^{oi}} }
+\hspace{10pt}
+\inferrule [oi-abstr-rec]
+{  }
+{ \semoi{t\Gamma^{oi}}{\rec{f}{x}{e}}{\oitval{\emptyset}{\oival{\emptyset}{\recclosure{f}{x}{e}{\conversion{toi}{oi}{t\Gamma^{oi}}}}}} }
+$$
+$$
+\inferrule [oi-apply]
+{ \semoi{t\Gamma^{oi}}{e_1}{\oitval{td^{oi}_1}{\oival{d^{oi}_1}{\closure{x}{e}{\Gamma^{oi}_1}}}}\\\\
+  \semoi{t\Gamma^{oi}}{e_2}{tu^{oi}_2}\\
+  tu^{oi}_2 = \oitval{td^{oi}_2}{u^{oi}_2}\\\\
+  \semoi{(x, tu^{oi}_2) \oplus \conversion{oi}{toi}{\Gamma^{oi}_1}}{e}{\oitval{td^{oi}}{\oival{d^{oi}}{v^{oi}}}}\\
+  deps\_spec\_apply(tu^{oi}_2, d^{oi}_1) = (td'^{oi}, d'^{oi})}
+{ \semoi{t\Gamma^{oi}}{e_1\ e_2}{\oitval{td^{oi}_1 \cup td^{oi}_2 \cup td^{oi} \cup td'^{oi}}{\oival{d'^{oi} \cup d^{oi}}{v^{oi}}}} }
+$$
+$$
+\inferrule [oi-rec-apply]
+{ \semoi{t\Gamma^{oi}}{e_1}{tu^{oi}_1}\\
+  tu^{oi}_1 = \oitval{td^{oi}_1}{\oival{d^{oi}_1}{\recclosure{f}{x}{e}{\Gamma^{oi}_1}}}\\\\
+  \semoi{t\Gamma^{oi}}{e_2}{tu^{oi}_2}\\
+  tu^{oi}_2 = \oitval{td^{oi}_2}{u^{oi}_2}\\\\
+  \semoi{(f, tu^{oi}_1) \oplus (x, tu^{oi}_2) \oplus \conversion{oi}{toi}{\Gamma^{oi}_1}}{e}{\oitval{td^{oi}}{\oival{d^{oi}}{v^{oi}}}}\\
+  deps\_spec\_apply(tu^{oi}_2, d^{oi}_1) = (td'^{oi}, d'^{oi})}
+{ \semoi{t\Gamma^{oi}}{e_1\ e_2}{\oitval{td^{oi}_1 \cup td^{oi}_2 \cup td^{oi} \cup td'^{oi}}{\oival{d'^{oi} \cup d^{oi}}{v^{oi}}}} }
+$$
+$$
+\inferrule [oi-letin]
+{ \semoi{t\Gamma^{oi}}{e_1}{tu^{oi}_1} \\
+  tu^{oi}_1 = \oitval{td^{oi}_1}{u^{oi}_1}\\\\
+  \semoi{(x, tu^{oi}_1) \oplus t\Gamma^{oi}}{e_2}{\oitval{td^{oi}_2}{u^{oi}_2}} }
+{ \semoi{t\Gamma^{oi}}{\letin{x}{e_1}{e_2}}{\oitval{td^{oi}_1 \cup td^{oi}_2}{u^{oi}_2}} }
+$$
+$$
+\inferrule [oi-if-true]
+{ \semoi{t\Gamma^{oi}}{e}{\oitval{td^{oi}}{\oival{d^{oi}}{true}}} \\
+  \semoi{t\Gamma^{oi}}{e_1}{\oitval{td^{oi}_1}{\oival{d^{oi}_1}{v^{oi}_1}}}\\
+  deps\_spec\_if(t\Gamma^{oi}, e_1, e_2, d^{oi}) = (td'^{oi}, d'^{oi}) }
+{ \semoi{t\Gamma^{oi}}{\exprifthenelse{e}{e_1}{e_2}}{\oitval{td'^{oi} \cup td^{oi} \cup td^{oi}_1}{\oival{d'^{oi} \cup d^{oi}_1}{v^{oi}_1}}} }
+$$
+$$
+\inferrule [oi-if-false]
+{ \semoi{t\Gamma^{oi}}{e}{\oitval{td^{oi}}{\oival{d^{oi}}{false}}} \\
+  \semoi{t\Gamma^{oi}}{e_2}{\oitval{td^{oi}_2}{\oival{d^{oi}_2}{v^{oi}_2}}}\\
+  deps\_spec\_if(t\Gamma^{oi}, e_1, e_2, d^{oi}) = (td'^{oi}, d'^{oi}) }
+{ \semoi{t\Gamma^{oi}}{\exprifthenelse{e}{e_1}{e_2}}{\oitval{td'^{oi} \cup td^{oi} \cup td^{oi}_2}{\oival{d'^{oi} \cup d^{oi}_2}{v^{oi}_2}}} }
+$$
+$$
+\inferrule [oi-match]
+{ \semoi{t\Gamma^{oi}}{e}{tu^{oi}} \\
+  tu^{oi} = \oitval{td^{oi}}{\oival{d^{oi}}{v^{oi}}}\\\\
+  \isfilteredtoi{tu^{oi}}{p}{t\Gamma^{oi}_p} \\\\
+  \semoi{t\Gamma^{oi}_p \oplus t\Gamma^{oi}}{e_1}{\oitval{td^{oi}_1}{\oival{d^{oi}_1}{v^{oi}_1}}}\\
+  deps\_spec\_match(t\Gamma^{oi}, p, x, e_1, e_2, d^{oi}) = (td'^{oi}, d'^{oi}) }
+{ \semoi{t\Gamma^{oi}}{\match{e}{p}{e_1}{x}{e_2}}{\oitval{td'^{oi} \cup td^{oi} \cup td^{oi}_1}{\oival{d'^{oi} \cup d^{oi}_1}{v^{oi}_1}}} }
+$$
+$$
+\inferrule [oi-match-var]
+{ \semoi{t\Gamma^{oi}}{e}{tu^{oi}} \\
+  tu^{oi} = \oitval{td^{oi}}{\oival{d^{oi}}{v^{oi}}}\\\\
+  \isfilteredtoi{tu^{oi}}{p}{\bot} \\\\
+  \semoi{(x, tu^{oi}) \oplus t\Gamma^{oi}}{e_2}{\oitval{td^{oi}_2}{\oival{d^{oi}_2}{v^{oi}_2}}}\\
+  deps\_spec\_match(t\Gamma^{oi}, p, x, e_1, e_2, d^{oi}) = (td'^{oi}, d'^{oi}) }
+{ \semoi{t\Gamma^{oi}}{\match{e}{p}{e_1}{x}{e_2}}{\oitval{td'^{oi} \cup td^{oi} \cup td^{oi}_2}{\oival{d'^{oi} \cup d^{oi}_2}{v^{oi}_2}}} }
+$$
+$$
+\inferrule [oi-constr-0]
+{  }
+{ \semoi{t\Gamma^{oi}}{C}{\oitval{\emptyset}{\oival{\emptyset}{C}}} }
+\hspace{10pt}
+\inferrule [oi-constr-1]
+{ \semoi{t\Gamma^{oi}}{e}{\oitval{td^{oi}}{u^{oi}}} }
+{ \semoi{t\Gamma^{oi}}{D(e)}{\oitval{td^{oi}}{\oival{\emptyset}{D(u^{oi})}}} }
+$$
+$$
+\inferrule [oi-couple]
+{ \semoi{t\Gamma^{oi}}{e_1}{\oitval{td^{oi}_1}{u^{oi}_1}} \\
+  \semoi{t\Gamma^{oi}}{e_2}{\oitval{td^{oi}_2}{u^{oi}_2}} }
+{ \semoi{t\Gamma^{oi}}{(e_1, e_2)}{\oitval{td^{oi}_1 \cup td^{oi}_2}{\oival{\emptyset}{(u^{oi}_1, u^{oi}_2)}}} }
+$$
+$$
+\inferrule [oi-annot]
+{ \semoi{t\Gamma^{oi}}{e}{\oitval{td^{oi}}{\oival{d^{oi}}{v^{oi}}}} }
+{ \semoi{t\Gamma^{oi}}{\annot{l}{e}}{\oitval{td^{oi}}{\oival{(l, fun\ x\Rightarrow x); d^{oi}}{v^{oi}}}} }
+$$
+
+$$
+\inferrule [oim-constr-0]
+{  }
+{ \isfilteredtoi{\oitval{td^{oi}}{\oival{d^{oi}}{C}}}{C}{\{\}} }
+\hspace{10pt}
+\inferrule [oim-constr-1]
+{  }
+{ \isfilteredtoi{\oitval{td^{oi}}{\oival{d^{oi}}{D(u^{oi})}}}{D(x)}{\{(x, \oitval{\emptyset}{u^{oi}})\}} }
+$$
+$$
+\inferrule [oim-couple]
+{  }
+{ \isfilteredtoi{(\oitval{td^{oi}_1}{\oival{d^{oi}_1}{u^{oi}_1}}, \oitval{td^{oi}_2}{\oival{d^{oi}_2}{u^{oi}_2}})}{(x_1, x_2)}{\{(x_1, \oitval{\emptyset}{u^{oi}_1}); (x_2, \oitval{\emptyset}{u^{oi}_2})\}} }
+$$
+
+$$
+\inferrule [oim-constr-0-not]
+{ p \neq C }
+{ \isfilteredtoi{\oitval{td^{oi}}{\oival{d^{oi}}{C}}}{p}{\bot} }
+\hspace{10pt}
+\inferrule [oim-constr-1-not]
+{ p \neq D'(\_) }
+{ \isfilteredtoi{\oitval{td^{oi}}{\oival{d^{oi}}{D(u^{oi})}}}{p}{\bot} }
+$$
+$$
+\inferrule [oim-couple-not]
+{ p \neq (\_, \_) }
+{ \isfilteredtoi{(\oitval{td^{oi}_1}{\oival{d^{oi}_1}{u^{oi}_1}}, \oitval{td^{oi}_2}{\oival{d^{oi}_2}{u^{oi}_2}})}{p}{\bot} }
+$$
+
+
+\section{Instrumented Semantics}
+\subsection{Values/Environments}
+$$
+\begin{array}{rll}
+tu^{i} := & \oitval{td^{i}}{u^{i}} & \mbox{Valeur avec annotation de $t$-dépendance}
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+u^{i} := & \oitval{d^{i}}{v^{i}} & \mbox{Valeur avec annotation de $v$-dépendance}
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+v^{i} := & n\ |\ b\ |\ C\ |\ D(u^{i})\ |\ (u^{i}_1, u^{i}_2) & \mbox{Constructeurs de données} \\
+     & \closure{x}{e}{\Gamma^{i}} & \mbox{Fermeture}\\
+     & \recclosure{f}{x}{e}{\Gamma^{i}} & \mbox{Fermeture récursive}
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+td^{i} := & \{l_1; \ldots; l_n\} & \mbox{$t$-dépendances}\\
+d^{i} := & \{l_1; \ldots; l_m\} & \mbox{$v$-dépendances}\\
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+t\Gamma^{i} := & (x_1, tu^{i}_1); \ldots ; (x_n, tu^{i}_n) & \mbox{$t$-environnement instrumenté}
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+\Gamma^{i} := & (x_1, u^{i}_1); \ldots ; (x_n, u^{i}_n) & \mbox{$v$-environnement instrumenté}
+\end{array}
+$$
+
+
+\subsection{Inference Rules}
+
+$$
+\inferrule [i-num]
+{  }
+{ \semi{t\Gamma^{i}}{n}{\oitval{\emptyset}{\oival{\emptyset}{n}}} }
+\hspace{10pt}
+\inferrule [i-ident]
+{ tu^{i} = t\Gamma^{i}[x] }
+{ \semi{t\Gamma^{i}}{x}{tu^{i}} }
+\hspace{10pt}
+\inferrule [i-letin]
+{ \semi{t\Gamma^{i}}{e_1}{tu^{i}_1} \\
+  tu^{i}_1 = \oitval{td^{i}_1}{u^{i}_1}\\\\
+  \semi{(x, tu^{i}_1) \oplus t\Gamma^{i}}{e_2}{\oitval{td^{i}_2}{u^{i}_2}} }
+{ \semi{t\Gamma^{i}}{\letin{x}{e_1}{e_2}}{\oitval{td^{i}_1 \cup td^{i}_2}{u^{i}_2}} }
+$$
+$$
+\inferrule [i-abstr]
+{  }
+{ \semi{t\Gamma^{i}}{\lambda x.e}{\oitval{\emptyset}{\oival{\emptyset}{\closure{x}{e}{\conversion{ti}{i}{t\Gamma^{i}}}}}} }
+$$
+$$
+\inferrule [i-abstr-rec]
+{  }
+{ \semi{t\Gamma^{i}}{\rec{f}{x}{e}}{\oitval{\emptyset}{\oival{\emptyset}{\recclosure{f}{x}{e}{\conversion{ti}{i}{t\Gamma^{i}}}}}} }
+$$
+$$
+\inferrule [i-apply]
+{ \semi{t\Gamma^{i}}{e_1}{\oitval{td^{i}_1}{\oival{d^{i}_1}{\closure{x}{e}{\Gamma^{i}_1}}}}\\\\
+  \semi{t\Gamma^{i}}{e_2}{tu^{i}_2}\\
+  tu^{i}_2 = \oitval{td^{i}_2}{u^{i}_2}\\\\
+  \semi{(x, tu^{i}_2) \oplus \conversion{i}{ti}{\Gamma^{i}_1}}{e}{\oitval{td^{i}}{\oival{d^{i}}{v^{i}}}} }
+{ \semi{t\Gamma^{i}}{e_1\ e_2}{\oitval{td^{i}_1 \cup td^{i}_2 \cup td^{i} \cup d^{i}_1}{\oival{d^{i}_1 \cup d^{i}}{v^{i}}}} }
+$$
+$$
+\inferrule [i-apply-rec]
+{ \semi{t\Gamma^{i}}{e_1}{tu^{i}_1}\\
+  tu^{i}_1 = \oitval{td^{i}_1}{\oival{d^{i}_1}{\recclosure{f}{x}{e}{\Gamma^{i}_1}}}\\\\
+  \semi{t\Gamma^{i}}{e_2}{tu^{i}_2}\\
+  tu^{i}_2 = \oitval{td^{i}_2}{u^{i}_2}\\\\
+  \semi{(f, tu^{i}_1) \oplus (x, tu^{i}_2) \oplus \conversion{i}{ti}{\Gamma^{i}_1}}{e}{\oitval{td^{i}}{\oival{d^{i}}{v^{i}}}} }
+{ \semi{t\Gamma^{i}}{e_1\ e_2}{\oitval{td^{i}_1 \cup td^{i}_2 \cup td^{i} \cup d^{i}_1}{\oival{d^{i}_1 \cup d^{i}}{v^{i}}}} }
+$$
+$$
+\inferrule [i-if-true]
+{ \semi{t\Gamma^{i}}{e}{\oitval{td^{i}}{\oival{d^{i}}{true}}} \\
+  \semi{t\Gamma^{i}}{e_1}{\oitval{td^{i}_1}{\oival{d^{i}_1}{v^{i}_1}}} }
+{ \semi{t\Gamma^{i}}{\exprifthenelse{e}{e_1}{e_2}}{\oitval{d^{i} \cup td^{i} \cup td^{i}_1}{\oival{d^{i} \cup d^{i}_1}{v^{i}_1}}} }
+$$
+$$
+\inferrule [i-if-false]
+{ \semi{t\Gamma^{i}}{e}{\oitval{td^{i}}{\oival{d^{i}}{false}}} \\
+  \semi{t\Gamma^{i}}{e_2}{\oitval{td^{i}_2}{\oival{d^{i}_2}{v^{i}_2}}} }
+{ \semi{t\Gamma^{i}}{\exprifthenelse{e}{e_1}{e_2}}{\oitval{d^{i} \cup td^{i} \cup td^{i}_2}{\oival{d^{i} \cup d^{i}_2}{v^{i}_2}}} }
+$$
+$$
+\inferrule [i-match]
+{ \semi{t\Gamma^{i}}{e}{tu^{i}} \\
+  tu^{i} = \oitval{td^{i}}{\oival{d^{i}}{v^{i}}}\\
+  \isfilteredti{tu^{i}}{p}{t\Gamma^{i}_p} \\\\
+  \semi{t\Gamma^{i}_p \oplus t\Gamma^{i}}{e_1}{\oitval{td^{i}_1}{\oival{d^{i}_1}{v^{i}_1}}} }
+{ \semi{t\Gamma^{i}}{\match{e}{p}{e_1}{x}{e_2}}{\oitval{d^{i} \cup td^{i} \cup td^{i}_1}{\oival{d^{i} \cup d^{i}_1}{v^{i}_1}}} }
+$$
+$$
+\inferrule [i-match-var]
+{ \semi{t\Gamma^{i}}{e}{tu^{i}} \\
+  tu^{i} = \oitval{td^{i}}{\oival{d^{i}}{v^{i}}}\\
+  \isfilteredti{tu^{i}}{p}{\bot} \\\\
+  \semi{(x, tu^{i}) \oplus t\Gamma^{i}}{e_2}{\oitval{td^{i}_2}{\oival{d^{i}_2}{v^{i}_2}}} }
+{ \semi{t\Gamma^{i}}{\match{e}{p}{e_1}{x}{e_2}}{\oitval{d^{i} \cup td^{i} \cup td^{i}_2}{\oival{d^{i} \cup d^{i}_2}{v^{i}_2}}} }
+$$
+$$
+\inferrule [i-constr-0]
+{  }
+{ \semi{t\Gamma^{i}}{C}{\oitval{\emptyset}{\oival{\emptyset}{C}}} }
+\hspace{10pt}
+\inferrule [i-constr-1]
+{ \semi{t\Gamma^{i}}{e}{\oitval{td^{i}}{u^{i}}} }
+{ \semi{t\Gamma^{i}}{D(e)}{\oitval{td^{i}}{\oival{\emptyset}{D(u^{i})}}} }
+$$
+$$
+\inferrule [i-couple]
+{ \semi{t\Gamma^{i}}{e_1}{\oitval{td^{i}_1}{u^{i}_1}} \\
+  \semi{t\Gamma^{i}}{e_2}{\oitval{td^{i}_2}{u^{i}_2}} }
+{ \semi{t\Gamma^{i}}{(e_1, e_2)}{\oitval{td^{i}_1 \cup td^{i}_2}{\oival{\emptyset}{(u^{i}_1, u^{i}_2)}}} }
+\hspace{10pt}
+\inferrule [i-annot]
+{ \semi{t\Gamma^{i}}{e}{\oitval{td^{i}}{\oival{d^{i}}{v^{i}}}} }
+{ \semi{t\Gamma^{i}}{\annot{l}{e}}{\oitval{td^{i}}{\oival{l; d^{i}}{v^{i}}}} }
+$$
+
+$$
+\inferrule [im-constr-0]
+{  }
+{ \isfilteredti{\itval{td^{i}}{\ival{d^{i}}{C}}}{C}{\{\}} }
+\hspace{10pt}
+\inferrule [im-constr-1]
+{  }
+{ \isfilteredti{\itval{td^{i}}{\ival{d^{i}}{D(u^{i})}}}{D(x)}{\{(x, \itval{\emptyset}{u^{i}})\}} }
+$$
+$$
+\inferrule [im-couple]
+{  }
+{ \isfilteredti{\itval{td^{i}}{\ival{d^{i}}{(u^{i}_1, u^{i}_2)}}}{(x_1, x_2)}{\{(x_1, \itval{\emptyset}{u^{i}_1}); (x_2, \itval{\emptyset}{u^{i}_2})\}} }
+$$
+
+$$
+\inferrule [im-constr-0-not]
+{ p \neq C }
+{ \isfilteredti{\itval{td^{i}}{\ival{d^{i}}{C}}}{p}{\bot} }
+\hspace{10pt}
+\inferrule [im-constr-1-not]
+{ p \neq D(\_) }
+{ \isfilteredti{\itval{td^{i}}{\ival{d^{i}}{D(u^{i})}}}{p}{\bot} }
+$$
+$$
+\inferrule [im-couple-not]
+{ p \neq (\_, \_) }
+{ \isfilteredti{\itval{td^{i}}{\ival{d^{i}}{(u^{i}_1, u^{i}_2)}}}{p}{\bot} }
+$$
+
+
+\section{Multiple Instrumented Semantics}
+\subsection{Inference Rules}
+
+$$
+\inferrule [i-multiple]
+{ v^{im} = \{tu^{i}\ |\ \exists t\Gamma^{i} \in t\Gamma^{im}.\ \semi{t\Gamma^{i}}{e}{tu^{i}} \} }
+{ \semim{t\Gamma^{im}}{e}{v^{im}} }
+$$
+
+
+\section{Collecting Semantics}
+\subsection{Values/Environments}
+
+$$
+\begin{array}{rll}
+tu^{c} := & \ctval{td^{c}}{d^{c}}{vs^{i}} & \mbox{Valeur collectrice}
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+td^{c} := & \{l_1; \ldots; l_n\} & \mbox{$t$-dépendances}\\
+d^{c} := & \{l_1; \ldots; l_m\} & \mbox{$v$-dépendances}\\
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+t\Gamma^{c} := & (x_1, tu^{c}_1); \ldots ; (x_n, tu^{c}_n) & \mbox{$t$-environnement collecteur}
+\end{array}
+$$
+
+\subsection{Inference Rules}
+
+$$
+\inferrule [c-num]
+{  }
+{ \semc{t\Gamma^{c}}{n}{\ctval{\emptyset}{\emptyset}{\{n\}}} }
+\hspace{10pt}
+\inferrule [c-ident]
+{ tu^{c} = t\Gamma^{c}[x] }
+{ \semc{t\Gamma^{c}}{x}{tu^{c}} }
+\hspace{10pt}
+\inferrule [c-ident-empty]
+{ x \not \in support(t\Gamma^{c}) }
+{ \semc{t\Gamma^{c}}{x}{\ctval{\emptyset}{\emptyset}{\emptyset}} }
+$$
+$$
+\inferrule [c-abstr]
+{ vs^{i} = \{ \closure{x}{e}{\Gamma^{i}} \ |\ \Gamma^{i} \in \conversion{c}{im}{t\Gamma^{c}} \} }
+{ \semc{t\Gamma^{c}}{\lambda x.e}{\ctval{\emptyset}{\emptyset}{vs^{i}}} }
+\hspace{10pt}
+\inferrule [c-abstr-rec]
+{ vs^{i} = \{ \recclosure{f}{x}{e}{\Gamma^{i}} \ |\ \Gamma^{i} \in \conversion{c}{im}{t\Gamma^{c}} \} }
+{ \semc{t\Gamma^{c}}{\rec{f}{x}{e}}{\ctval{\emptyset}{\emptyset}{vs^{i}}} }
+$$
+$$
+\inferrule [c-apply]
+{ \semc{t\Gamma^{c}}{e_1}{\ctval{td^c_1}{d^c_1}{vs^{i}_1}}\\
+  \semc{t\Gamma^{c}}{e_2}{\ctval{td^c_2}{d^c_2}{vs^{i}_2}}\\
+  v^{im} = multiple\_instrumented\_application(td^c_1, d^c_1, vs^{i}_1, td^c_2, d^c_2, vs^{i}_2)\\
+  (\forall l.\ l \in td^c \Leftrightarrow (\exists (td^i, d^i, v^i).\ l \in td^i \wedge \itval{td^i}{\ival{d^i}{v^i}} \in v^{im}))\\
+  (\forall l.\ l \in d^c \Leftrightarrow (\exists (td^i, d^i, v^i).\ l \in d^i \wedge \itval{td^i}{\ival{d^i}{v^i}} \in v^{im}))\\
+  vs^{i} = \{ v^i\ |\ \exists (td^i, d^i).\ \itval{td^i}{\ival{d^i}{v^i}} \in v^{im} \}
+}
+{ \semc{t\Gamma^{c}}{e_1\ e_2}{\ctval{td^c}{d^c}{vs^{i}}} }
+$$
+$$
+\inferrule [c-if-true]
+{ \semc{t\Gamma^{c}}{e}{\ctval{td^c}{d^c}{vs^{i}}}\\
+  true \in vs^i\\
+  false \not \in vs^i\\
+  \semc{t\Gamma^{c}}{e_1}{\ctval{td^c_1}{d^c_1}{vs^{i}_1}}\\
+  tu'^c = \ctval{d^c \cup td^c \cup td^c_1}{d^c \cup d^c_1}{vs^{i}_1}
+ }
+{ \semc{t\Gamma^{c}}{\exprifthenelse{e}{e_1}{e_2}}{tu'^c} }
+$$
+$$
+\inferrule [c-if-false]
+{ \semc{t\Gamma^{c}}{e}{\ctval{td^c}{d^c}{vs^{i}}}\\
+  false \in vs^i\\
+  true \not \in vs^i\\
+  \semc{t\Gamma^{c}}{e_2}{\ctval{td^c_2}{d^c_2}{vs^{i}_2}}\\
+  tu'^c = \ctval{d^c \cup td^c \cup td^c_2}{d^c \cup d^c_2}{vs^{i}_2}
+ }
+{ \semc{t\Gamma^{c}}{\exprifthenelse{e}{e_1}{e_2}}{tu'^c} }
+$$
+$$
+\inferrule [c-if-unknown]
+{ \semc{t\Gamma^{c}}{e}{\ctval{td^c}{d^c}{vs^{i}}}\\
+  true \in vs^i\\
+  false \in vs^i\\
+  \semc{t\Gamma^{c}}{e_1}{\ctval{td^c_1}{d^c_1}{vs^{i}_1}}\\
+  \semc{t\Gamma^{c}}{e_2}{\ctval{td^c_2}{d^c_2}{vs^{i}_2}}\\
+  tu'^c = \ctval{d^c \cup td^c \cup td^c_1 \cup td^c_2}{d^c \cup d^c_1 \cup d^c_2}{vs^i_1 \cup vs^i_2}
+ }
+{ \semc{t\Gamma^{c}}{\exprifthenelse{e}{e_1}{e_2}}{tu'^c} }
+$$
+$$
+\inferrule [c-if-empty]
+{ \semc{t\Gamma^{c}}{e}{\ctval{td^c}{d^c}{vs^{i}}}\\
+  true \not \in vs^i\\
+  false \not \in vs^i
+ }
+{ \semc{t\Gamma^{c}}{\exprifthenelse{e}{e_1}{e_2}}{\ctval{\emptyset}{\emptyset}{\emptyset}} }
+$$
+$$
+\inferrule [c-match]
+{ \semc{t\Gamma^{c}}{e}{tu^c}\\
+  tu^c = \ctval{td^c}{d^c}{vs^{i}}\\
+  vs^{i} \cap vs^{i}_{matchable} \neq \emptyset\\
+  \isfilteredtc{tu^c}{p}{t\Gamma^c_p} \\
+  \semc{t\Gamma^c_p \oplus t\Gamma^{c}}{e_1}{\ctval{td^c_1}{d^c_1}{vs^{i}_1}}
+ }
+{ \semc{t\Gamma^{c}}{\match{e}{p}{e_1}{x}{e_2}}{\ctval{d^c \cup td^c \cup td^c_1}{d^c \cup d^c_1}{vs^{i}_1}} }
+$$
+$$
+\inferrule [c-match-var]
+{ \semc{t\Gamma^{c}}{e}{tu^c}\\
+  tu^c = \ctval{td^c}{d^c}{vs^{i}}\\
+  vs^{i} \cap vs^{i}_{matchable} \neq \emptyset\\
+  \isfilteredtc{tu^c}{p}{\bot} \\
+  \semc{(x, tu^c) \oplus t\Gamma^{c}}{e_2}{\ctval{td^c_2}{d^c_2}{vs^{i}_2}}\\
+ }
+{ \semc{t\Gamma^{c}}{\match{e}{p}{e_1}{x}{e_2}}{\ctval{d^c \cup td^c \cup td^c_2}{d^c \cup d^c_2}{vs^{i}_2}} }
+$$
+$$
+\inferrule [c-match-unknown]
+{ \semc{t\Gamma^{c}}{e}{tu^c}\\
+  tu^c = \ctval{td^c}{d^c}{vs^{i}}\\
+  vs^{i} \cap vs^{i}_{matchable} \neq \emptyset\\
+  \isfilteredtc{tu^c}{p}{?\ t\Gamma^c_p} \\
+  \semc{t\Gamma^c_p \oplus t\Gamma^{c}}{e_1}{\ctval{td^c_1}{d^c_1}{vs^{i}_1}}\\
+  \semc{(x, tu^c) \oplus t\Gamma^{c}}{e_2}{\ctval{td^c_2}{d^c_2}{vs^{i}_2}}\\
+ }
+{ \semc{t\Gamma^{c}}{\match{e}{p}{e_1}{x}{e_2}}{\ctval{d^c \cup td^c \cup td^c_1 \cup td^c_2}{d^c \cup d^c_1 \cup d^c_2}{vs^{i}_1 \cup vs^{i}_2}} }
+$$
+$$
+\inferrule [c-match-empty]
+{ \semc{t\Gamma^{c}}{e}{tu^c}\\
+  tu^c = \ctval{td^c}{d^c}{vs^{i}}\\
+  vs^{i} \cap vs^{i}_{matchable} = \emptyset\\
+ }
+{ \semc{t\Gamma^{c}}{\match{e}{p}{e_1}{x}{e_2}}{\ctval{\emptyset}{\emptyset}{\emptyset}} }
+$$
+
+$$
+\inferrule [c-constr-0]
+{  }
+{ \semc{t\Gamma^{c}}{C}{\ctval{\emptyset}{\emptyset}{\{C\}}} }
+\hspace{10pt}
+\inferrule [c-constr-1]
+{ \semc{t\Gamma^{c}}{e}{\ctval{td^c}{d^c}{vs^{i}}} }
+{ \semc{t\Gamma^{c}}{D(e)}{\ctval{td^c}{\emptyset}{\{D(\ival{d^c}{v^i})\ |\ v^i \in vs^i \}}} }
+$$
+$$
+\inferrule [c-couple]
+{ \semc{t\Gamma^{c}}{e_1}{\ctval{td^c_1}{d^c_1}{vs^{i}_1}}\\
+  \semc{t\Gamma^{c}}{e_2}{\ctval{td^c_2}{d^c_2}{vs^{i}_2}} }
+{ \semc{t\Gamma^{c}}{(e_1, e_2)}{\ctval{td^c_1 \cup td^c_2}{\emptyset}{\{(\ival{d^c_1}{v^i_1}, \ival{d^c_2}{v^i_2})\ |\ v^i_1 \in vs^i_1 \wedge v^i_2 \in vs^i_2 \}}} }
+$$
+$$
+\inferrule [c-letin]
+{ \semc{t\Gamma^{c}}{e_1}{tu^c_1}\\
+  tu^c_1 = \ctval{td^c_1}{d^c_1}{vs^{i}_1}\\
+  vs^{i}_1 \neq \emptyset\\
+  \semc{(x, tu^c_1) \oplus t\Gamma^{c}}{e_2}{\ctval{td^c_2}{d^c_2}{vs^{i}_2}} }
+{ \semc{t\Gamma^{c}}{\letin{x}{e_1}{e_2}}{\ctval{td^c_1 \cup td^c_2}{d^c_2}{vs^{i}_2}} }
+$$
+$$
+\inferrule [c-letin-empty]
+{ \semc{t\Gamma^{c}}{e_1}{\ctval{td^c_1}{d^c_1}{\emptyset}} }
+{ \semc{t\Gamma^{c}}{\letin{x}{e_1}{e_2}}{\ctval{\emptyset}{\emptyset}{\emptyset}} }
+\hspace{10pt}
+\inferrule [c-annot]
+{ \semc{t\Gamma^{c}}{e}{\ctval{td^c}{d^c}{vs^{i}}} }
+{ \semc{t\Gamma^{c}}{\annot{l}{e}}{\ctval{td^c}{\{l\} \cup d^c}{vs^i}} }
+$$
+
+
+$$
+vs^{i}_{matchable} = \{C | \forall C \in Constr^0\} \cup \{D(u^{i}) | \forall D \in Constr^1, \forall u^{i}\} \cup \{(u^{i}_1, u^{i}_2) | \forall u^{i}_1, \forall u^{i}_2\}
+$$
+
+$$
+\inferrule [cm-constr-0]
+{ vs^{i} \cap vs^{i}_{matchable} \subseteq \{C | \forall C \in Constr^0\} }
+{ \isfilteredtc{\ctval{td^c}{d^c}{vs^{i}}}{C}{\{\}} }
+$$
+$$
+\inferrule [cm-constr-1]
+{ vs^{i} \cap vs^{i}_{matchable} \subseteq \{D(u^{i}) | \forall D \in Constr^1, \forall u^{i}\}\\
+  vs'^{i} = \{v^{i} | \exists d^{i}. D(\ival{d^{i}}{v^{i}}) \in vs^{i}\}\\
+  \forall l. l \in d'^c \Leftrightarrow \exists d^{i}. l \in d^{i} \wedge \exists v^{i}. D(\ival{d^{i}}{v^{i}}) \in vs^{i}
+}
+{ \isfilteredtc{\ctval{td^c}{d^c}{vs^{i}}}{D(x)}{\{(x, \ctval{\emptyset}{d'^c}{vs'^{i}})\}} }
+$$
+$$
+\inferrule [cm-couple]
+{ vs^{i} \cap vs^{i}_{matchable} \subseteq \{(u^{i}_1, u^{i}_2) | \forall u^{i}_1, \forall u^{i}_2\}\\
+  vs^{i}_1 = \{v^{i}_1 | \exists (d^{i}_1, d^{i}_2, v^{i}_2). (\ival{d^{i}_1}{v^{i}_1}, \ival{d^{i}_2}{v^{i}_2}) \in vs^{i}\}\\
+  \forall l. l \in d^c_1 \Leftrightarrow \exists d^{i}_1. l \in d^{i}_1 \wedge \exists (v^{i}_1, d^{i}_2, v^{i}_2). (\ival{d^{i}_1}{v^{i}_1}, \ival{d^{i}_2}{v^{i}_2}) \in vs^{i}\\
+  vs^{i}_2 = \{v^{i}_2 | \exists (d^{i}_1, v^{i}_1, d^{i}_2). (\ival{d^{i}_1}{v^{i}_1}, \ival{d^{i}_2}{v^{i}_2}) \in vs^{i}\}\\
+  \forall l. l \in d^c_2 \Leftrightarrow \exists d^{i}_2. l \in d^{i}_2 \wedge \exists (d^{i}_1, v^{i}_1, v^{i}_2). (\ival{d^{i}_1}{v^{i}_1}, \ival{d^{i}_2}{v^{i}_2}) \in vs^{i}
+}
+{ \isfilteredtc{\ctval{td^c}{d^c}{vs^{i}}}{(x_1, x_2)}{\{(x_1, \ctval{\emptyset}{d^c_1}{vs^{i}_1}); (x_2, \ctval{\emptyset}{d^c_2}{vs^{i}_2})\}} }
+$$
+
+$$
+\inferrule [cm-constr-0-not]
+{ vs^{i} \cap \{C | \forall C \in Constr^0\} = \emptyset }
+{ \isfilteredtc{\ctval{td^c}{d^c}{vs^{i}}}{C}{\bot} }
+\hspace{10pt}
+\inferrule [cm-constr-1-not]
+{ vs^{i} \cap \{D(u^{i}) | \forall D \in Constr^1, \forall u^{i}\} = \emptyset }
+{ \isfilteredtc{\ctval{td^c}{d^c}{vs^{i}}}{D(x)}{\bot} }
+$$
+$$
+\inferrule [cm-couple-not]
+{ vs^{i} \cap \{(u^{i}_1, u^{i}_2) | \forall u^{i}_1, \forall u^{i}_2\} = \emptyset }
+{ \isfilteredtc{\ctval{td^c}{d^c}{vs^{i}}}{(x_1, x_2)}{\bot} }
+$$
+
+$$
+\inferrule [cm-constr-0-unknown]
+{ vs^{i} \cap vs^{i}_{matchable} \not \subseteq \{C | \forall C \in Constr^0\}\\
+  vs^{i} \cap \{C | \forall C \in Constr^0\} \neq \emptyset }
+{ \isfilteredtc{\ctval{td^c}{d^c}{vs^{i}}}{C}{?\ \{\}} }
+$$
+$$
+\inferrule [cm-constr-1-unknown]
+{ vs^{i} \cap vs^{i}_{matchable} \not \subseteq \{D(u^{i}) | \forall D \in Constr^1, \forall u^{i}\}\\
+  vs^{i} \cap \{D(u^{i}) | \forall D \in Constr^1, \forall u^{i}\} \neq \emptyset\\
+  vs'^{i} = \{v^{i} | \exists d^{i}. D(\ival{d^{i}}{v^{i}}) \in vs^{i} \cap \{D(u^{i}) | \forall D \in Constr^1, \forall u^{i}\}\}\\
+  \forall l. l \in d'^c \Leftrightarrow \exists d^{i}. l \in d^{i} \wedge \exists v^{i}. D(\ival{d^{i}}{v^{i}}) \in vs^{i} \cap \{D(u^{i}) | \forall D \in Constr^1, \forall u^{i}\} }
+{ \isfilteredtc{\ctval{td^c}{d^c}{vs^{i}}}{D(x)}{?\ \{(x, \ctval{\emptyset}{d'^c}{vs'^{i}})\}} }
+$$
+$$
+\inferrule [cm-couple-unknown]
+{ vs^{i} \cap vs^{i}_{matchable} \not \subseteq \{(u^{i}_1, u^{i}_2) | \forall u^{i}_1, \forall u^{i}_2\}\\
+  vs^{i} \cap \{(u^{i}_1, u^{i}_2) | \forall u^{i}_1, \forall u^{i}_2\} \neq \emptyset\\
+  vs^{i}_1 = \{v^{i}_1 | \exists (d^{i}_1, d^{i}_2, v^{i}_2). (\ival{d^{i}_1}{v^{i}_1}, \ival{d^{i}_2}{v^{i}_2}) \in vs^{i} \cap \{(u^{i}_1, u^{i}_2) | \forall u^{i}_1, \forall u^{i}_2\}\}\\
+  \forall l. l \in d^c_1 \Leftrightarrow \exists d^{i}_1. l \in d^{i}_1 \wedge \exists (v^{i}_1, d^{i}_2, v^{i}_2). (\ival{d^{i}_1}{v^{i}_1}, \ival{d^{i}_2}{v^{i}_2}) \in vs^{i} \cap \{(u^{i}_1, u^{i}_2) | \forall u^{i}_1, \forall u^{i}_2\}\\
+  vs^{i}_2 = \{v^{i}_2 | \exists (d^{i}_1, v^{i}_1, d^{i}_2). (\ival{d^{i}_1}{v^{i}_1}, \ival{d^{i}_2}{v^{i}_2}) \in vs^{i} \cap \{(u^{i}_1, u^{i}_2) | \forall u^{i}_1, \forall u^{i}_2\}\}\\
+  \forall l. l \in d^c_2 \Leftrightarrow \exists d^{i}_2. l \in d^{i}_2 \wedge \exists (d^{i}_1, v^{i}_1, v^{i}_2). (\ival{d^{i}_1}{v^{i}_1}, \ival{d^{i}_2}{v^{i}_2}) \in vs^{i} \cap \{(u^{i}_1, u^{i}_2) | \forall u^{i}_1, \forall u^{i}_2\}
+}
+{ \isfilteredtc{\ctval{td^c}{d^c}{vs^{i}}}{(x_1, x_2)}{?\ \{(x_1, \ctval{\emptyset}{d^c_1}{vs^{i}_1}); (x_2, \ctval{\emptyset}{d^c_2}{vs^{i}_2})\}} }
+$$
+
+
+\section{Abstract Semantics}
+\subsection{Values/Environments}
+
+$$
+\begin{array}{rll}
+tu^{a} := & \atval{td^{a}}{u^{a}} & \mbox{Valeur avec annotation de $t$-dépendance}
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+u^{a} := & \aval{d^{a}}{v^{a}} & \mbox{Valeur avec annotation de $v$-dépendance}
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+v^{a} := & C\ |\ D(u^{a})\ |\ (u^{a}_1, u^{a}_2) & \mbox{Constructeurs de données} \\
+     & \closure{x}{e}{\Gamma^{a}} & \mbox{Fermeture}\\
+     & \recclosure{f}{x}{e}{\Gamma^{a}} & \mbox{Fermeture récursive}\\
+     & \bot & \mbox{Aucune valeur}\\
+     & \top & \mbox{Valeur quelconque}
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+td^{a} := & \{l_1; \ldots; l_n\} & \mbox{$t$-dépendances}\\
+d^{a} := & \{l_1; \ldots; l_m\} & \mbox{$v$-dépendances}\\
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+t\Gamma^{a} := & (x_1, tu^{a}_1); \ldots ; (x_n, tu^{a}_n) & \mbox{$t$-environnement abstrait}
+\end{array}
+$$
+
+$$
+\begin{array}{rll}
+\Gamma^{a} := & (x_1, u^{a}_1); \ldots ; (x_n, u^{a}_n) & \mbox{$v$-environnement abstraite}
+\end{array}
+$$
+
+\subsection{Inference Rules}
+
+$$
+\inferrule [a-num]
+{  }
+{ \sema{t\Gamma^{a}}{n}{\atval{\emptyset}{\aval{\emptyset}{\top}}} }
+\hspace{10pt}
+\inferrule [a-ident]
+{ tu^{a} = t\Gamma^{a}[x] }
+{ \sema{t\Gamma^{a}}{x}{tu^{a}} }
+\hspace{10pt}
+\inferrule [a-ident-empty]
+{ x \not \in support(t\Gamma^{a}) }
+{ \sema{t\Gamma^{a}}{x}{\atval{\emptyset}{\aval{\emptyset}{\bot}}} }
+$$
+$$
+\inferrule [a-abstr]
+{  }
+{ \sema{t\Gamma^{a}}{\lambda x.e}{\atval{\emptyset}{\aval{\emptyset}{\closure{x}{e}{\conversion{ta}{a}{t\Gamma^{a}}}}}} }
+$$
+$$
+\inferrule [a-abstr-rec]
+{  }
+{ \sema{t\Gamma^{a}}{\rec{f}{x}{e}}{\atval{\emptyset}{\aval{\emptyset}{\recclosure{f}{x}{e}{\conversion{ta}{a}{t\Gamma^{a}}}}}} }
+$$
+$$
+\inferrule [a-letin]
+{ \sema{t\Gamma^{a}}{e_1}{tu^{a}_1} \\
+  tu^{a}_1 = \atval{td^{a}_1}{u^{a}_1}\\\\
+  \sema{(x, tu^{a}_1) \oplus t\Gamma^{a}}{e_2}{\oitval{td^{a}_2}{u^{a}_2}} }
+{ \sema{t\Gamma^{a}}{\letin{x}{e_1}{e_2}}{\atval{td^{a}_1 \cup td^{a}_2}{u^{a}_2}} }
+$$
+$$
+\inferrule [a-apply]
+{ \sema{t\Gamma^{a}}{e_1}{\atval{td^{a}_1}{\aval{d^{a}_1}{\closure{x}{e}{\Gamma^{a}_1}}}}\\\\
+  \sema{t\Gamma^{a}}{e_2}{tu^{a}_2}\\
+  tu^{a}_2 = \atval{td^{a}_2}{u^{a}_2}\\\\
+  \sema{(x, tu^{a}_2) \oplus \conversion{a}{ta}{\Gamma^{a}_1}}{e}{\atval{td^{a}}{\aval{d^{a}}{v^{a}}}} }
+{ \sema{t\Gamma^{a}}{e_1\ e_2}{\atval{td^{a}_1 \cup td^{a}_2 \cup td^{a} \cup d^{a}_1}{\aval{d^{a}_1 \cup d^{a}}{v^{a}}}} }
+$$
+$$
+\inferrule [a-apply-rec]
+{ \sema{t\Gamma^{a}}{e_1}{\atval{td^{a}_1}{\aval{d^{a}_1}{\recclosure{f}{x}{e}{\Gamma^{a}_1}}}}\\
+  tu^{a}_1 = \atval{td^{a}_1}{\aval{d\_of\_freevars(\rec{f}{x}{e}, t\Gamma^{a})}{\top}}\\\\
+  \sema{t\Gamma^{a}}{e_2}{tu^{a}_2}\\
+  tu^{a}_2 = \atval{td^{a}_2}{u^{a}_2}\\\\
+  \sema{(f, tu^{a}_1) \oplus (x, tu^{a}_2) \oplus \conversion{a}{ta}{\Gamma^{a}_1}}{e}{\atval{td^{a}}{\aval{d^{a}}{v^{a}}}} }
+{ \sema{t\Gamma^{a}}{e_1\ e_2}{\atval{td^{a}_1 \cup td^{a}_2 \cup td^{a} \cup d^{a}_1}{\aval{d^{a}_1 \cup d^{a}}{v^{a}}}} }
+$$
+$$
+\inferrule [a-apply-unknown]
+{ \sema{t\Gamma^{a}}{e_1}{\atval{td^{a}_1}{\aval{d^{a}_1}{v^{a}_1}}}\\
+  \sema{t\Gamma^{a}}{e_2}{\atval{td^{a}_2}{\aval{d^{a}_2}{v^{a}_2}}}\\\\
+  \forall (f, x, e, \Gamma^{a}_1).
+  v^{a}_1 \neq \closure{x}{e}{\Gamma^{a}_1} \wedge v^{a}_1 \neq \recclosure{f}{x}{e}{\Gamma^{a}_1} }
+{ \sema{t\Gamma^{a}}{e_1\ e_2}{\atval{td^{a}_1 \cup td^{a}_2 \cup d^{a}_1 \cup d^{a}_2}{\aval{d^{a}_1 \cup d^{a}_2}{\top}}} }
+$$
+$$
+\inferrule [a-if]
+{ \sema{t\Gamma^{a}}{e}{\atval{td^{a}}{\aval{d^{a}}{v^{a}}}}\\
+  \sema{t\Gamma^{a}}{e_1}{\atval{td^{a}_1}{\aval{d^{a}_1}{v^{a}_1}}}\\
+  \sema{t\Gamma^{a}}{e_2}{\atval{td^{a}_2}{\aval{d^{a}_2}{v^{a}_2}}} }
+{ \sema{t\Gamma^{a}}{\exprifthenelse{e}{e_1}{e_2}}{\atval{d^{a} \cup td^{a} \cup td^{a}_1 \cup td^{a}_2}{\aval{d^{a} \cup d^{a}_1 \cup d^{a}_2}{\top}}} }
+$$
+$$
+\inferrule [a-match]
+{ \sema{t\Gamma^{a}}{e}{tu^{a}} \\
+  tu^{a} = \atval{td^{a}}{\aval{d^{a}}{v^{a}}}\\
+  \isfilteredta{tu^{a}}{p}{t\Gamma^{a}_p} \\\\
+  \sema{t\Gamma^{a}_p \oplus t\Gamma^{a}}{e_1}{\atval{td^{a}_1}{\aval{d^{a}_1}{v^{a}_1}}} }
+{ \sema{t\Gamma^{a}}{\match{e}{p}{e_1}{x}{e_2}}{\atval{d^{a} \cup td^{a} \cup td^{a}_1}{\aval{d^{a} \cup d^{a}_1}{v^{a}_1}}} }
+$$
+$$
+\inferrule [a-match-var]
+{ \sema{t\Gamma^{a}}{e}{tu^{a}} \\
+  tu^{a} = \atval{td^{a}}{\aval{d^{a}}{v^{a}}}\\
+  \isfilteredta{tu^{a}}{p}{\bot} \\\\
+  \sema{(x, tu^{a}) \oplus t\Gamma^{a}}{e_2}{\atval{td^{a}_2}{\aval{d^{a}_2}{v^{a}_2}}} }
+{ \sema{t\Gamma^{a}}{\match{e}{p}{e_1}{x}{e_2}}{\atval{d^{a} \cup td^{a} \cup td^{a}_2}{\aval{d^{a} \cup d^{a}_2}{v^{a}_2}}} }
+$$
+$$
+\inferrule [a-match-unknown]
+{ \sema{t\Gamma^{a}}{e}{tu^{a}} \\
+  tu^{a} = \atval{td^{a}}{\aval{d^{a}}{v^{a}}}\\
+  \isfilteredta{tu^{a}}{p}{?\ t\Gamma^{a}_p} \\\\
+  \sema{t\Gamma^{a}_p \oplus t\Gamma^{a}}{e_1}{\atval{td^{a}_1}{\aval{d^{a}_1}{v^{a}_1}}}\\
+  \sema{(x, tu^{a}) \oplus t\Gamma^{a}}{e_2}{\atval{td^{a}_2}{\aval{d^{a}_2}{v^{a}_2}}} }
+{ \sema{t\Gamma^{a}}{\match{e}{p}{e_1}{x}{e_2}}{\atval{d^{a} \cup td^{a} \cup td^{a}_1 \cup td^{a}_2}{\aval{d^{a} \cup d^{a}_1 \cup d^{a}_2}{\top}}} }
+$$
+$$
+\inferrule [a-match-error]
+{ \sema{t\Gamma^{a}}{e}{\atval{td^{a}}{\aval{d^{a}}{v^{a}}}}\\
+  \isfilteredta{tu^{a}}{p}{\times} }
+{ \sema{t\Gamma^{a}}{\match{e}{p}{e_1}{x}{e_2}}{\atval{\emptyset}{\aval{\emptyset}{\bot}}} }
+$$
+$$
+\inferrule [a-constr-0]
+{  }
+{ \sema{t\Gamma^{a}}{C}{\atval{\emptyset}{\aval{\emptyset}{C}}} }
+\hspace{10pt}
+\inferrule [a-constr-1]
+{ \sema{t\Gamma^{a}}{e}{\atval{td^{a}}{u^{a}}} }
+{ \sema{t\Gamma^{a}}{D(e)}{\atval{td^{a}}{\aval{\emptyset}{D(u^{a})}}} }
+$$
+$$
+\inferrule [a-couple]
+{ \sema{t\Gamma^{a}}{e_1}{\atval{td^{a}_1}{u^{a}_1}} \\
+  \sema{t\Gamma^{a}}{e_2}{\atval{td^{a}_2}{u^{a}_2}} }
+{ \sema{t\Gamma^{a}}{(e_1, e_2)}{\atval{td^{a}_1 \cup td^{a}_2}{\aval{\emptyset}{(u^{a}_1, u^{a}_2)}}} }
+\hspace{10pt}
+\inferrule [a-annot]
+{ \sema{t\Gamma^{a}}{e}{\atval{td^{a}}{\aval{d^{a}}{v^{a}}}} }
+{ \sema{t\Gamma^{a}}{\annot{l}{e}}{\atval{td^{a}}{\aval{l; d^{a}}{v^{a}}}} }
+$$
+
+{\scriptsize
+$$
+\begin{array}{rl}
+d\_of\_freevars(e, t\Gamma^{a}) := & dof\_aux(e, t\Gamma^{a}, \emptyset, \emptyset)
+\end{array}
+$$
+$$
+\begin{array}{rl}
+dof\_aux(n, t\Gamma^{a}, bvars, acc) := & acc\\
+dof\_aux(C, t\Gamma^{a}, bvars, acc) := & acc\\
+dof\_aux(D(e), t\Gamma^{a}, bvars, acc) := & dof\_aux(e, t\Gamma^{a}, bvars, acc)\\
+dof\_aux(x, t\Gamma^{a}, bvars, acc) := & acc \mbox{ si } x \in bvars\\
+dof\_aux(x, t\Gamma^{a}, bvars, acc) := & d^{a} \cup acc \mbox{ si } x \not \in bvars \wedge t\Gamma^{a}[x] = \atval{td^{a}}{\aval{d^{a}}{v^{a}}}\\
+dof\_aux(\lambda x.e, t\Gamma^{a}, bvars, acc) := & dof\_aux(e, t\Gamma^{a}, x; bvars, acc)\\
+dof\_aux(\rec{f}{x}{e}, t\Gamma^{a}, bvars, acc) := & dof\_aux(e, t\Gamma^{a}, f; x; bvars, acc)\\
+dof\_aux(e_1\ e_2, t\Gamma^{a}, bvars, acc) := & dof\_aux(e_2, t\Gamma^{a}, bvars, acc_1)\\
+& \mbox{pour } acc_1 = dof\_aux(e_1, t\Gamma^{a}, bvars, acc)\\
+dof\_aux(\exprifthenelse{e}{e_1}{e_2}, t\Gamma^{a}, bvars, acc) := & dof\_aux(e_2, t\Gamma^{a}, bvars, acc_1)\\
+& \mbox{pour } acc_1 = dof\_aux(e_1, t\Gamma^{a}, bvars, acc_0)\\
+& \mbox{et\ \ \ \ } acc_0 = dof\_aux(e, t\Gamma^{a}, bvars, acc)\\
+dof\_aux(\match{e}{p}{e_1}{x}{e_2}, t\Gamma^{a}, bvars, acc) := & dof\_aux(e_2, t\Gamma^{a}, x; bvars, acc_1)\\
+& \mbox{pour } acc_1 = dof\_aux(e_1, t\Gamma^{a}, binders\_of(p); bvars, acc_0)\\
+& \mbox{et\ \ \ \ } acc_0 = dof\_aux(e, t\Gamma^{a}, bvars, acc)\\
+dof\_aux((e_1, e_2), t\Gamma^{a}, bvars, acc) := & dof\_aux(e_2, t\Gamma^{a}, bvars, acc_1)\\
+& \mbox{pour } acc_1 = dof\_aux(e_1, t\Gamma^{a}, bvars, acc)\\
+dof\_aux(\annot{l}{e}, t\Gamma^{a}, bvars, acc) := & dof\_aux(e, t\Gamma^{a}, bvars, acc)\\
+dof\_aux(\letin{x}{e_1}{e_2}, t\Gamma^{a}, bvars, acc) := & dof\_aux(e_2, t\Gamma^{a}, x; bvars, acc_1)\\
+& \mbox{pour } acc_1 = dof\_aux(e_1, t\Gamma^{a}, bvars, acc)\\
+\end{array}
+$$
+$$
+\begin{array}{rl}
+binders\_of(C) := & \{\}\\
+binders\_of(D(x)) := & \{x\}\\
+binders\_of((x,y)) := & \{x; y\}\\
+\end{array}
+$$
+}%end \small
+
+$$
+\inferrule [am-constr-0]
+{  }
+{ \isfilteredta{\atval{td^{a}}{\aval{d^{a}}{C}}}{C}{\{\}} }
+\hspace{10pt}
+\inferrule [am-constr-1]
+{  }
+{ \isfilteredta{\atval{td^{a}}{\aval{d^{a}}{D(u^{a})}}}{D(x)}{\{(x, \atval{\emptyset}{u^{a}})\}} }
+$$
+$$
+\inferrule [am-couple]
+{  }
+{ \isfilteredta{\atval{td^{a}}{\aval{d^{a}}{(u^{a}_1, u^{a}_2)}}}{(x_1, x_2)}{\{(x_1, \atval{\emptyset}{u^{a}_1}); (x_2, \atval{\emptyset}{u^{a}_2})\}} }
+$$
+$$
+\inferrule [am-constr-0-not]
+{ p \neq C }
+{ \isfilteredta{\atval{td^{a}}{\aval{d^{a}}{C}}}{p}{\bot} }
+\hspace{10pt}
+\inferrule [am-constr-1-not]
+{ p \neq D(\_) }
+{ \isfilteredta{\atval{td^{a}}{\aval{d^{a}}{D(u^{a})}}}{p}{\bot} }
+$$
+$$
+\inferrule [am-couple-not]
+{ p \neq (\_, \_) }
+{ \isfilteredta{\atval{td^{a}}{\aval{d^{a}}{(u^{a}_1, u^{a}_2)}}}{p}{\bot} }
+$$
+$$
+\inferrule [am-constr-0-unknown]
+{  }
+{ \isfilteredta{\atval{td^{a}}{\aval{d^{a}}{\top}}}{C}{?\ \{\}} }
+\hspace{10pt}
+\inferrule [am-constr-1-unknown]
+{  }
+{ \isfilteredta{\atval{td^{a}}{\aval{d^{a}}{\top}}}{D(x)}{?\ \{(x, \atval{\emptyset}{\aval{\emptyset}{\top}})\}} }
+$$
+$$
+\inferrule [am-couple-unknown]
+{  }
+{ \isfilteredta{\atval{td^{a}}{\aval{d^{a}}{\top}}}{(x_1, x_2)}{?\ \{(x_1, \atval{\emptyset}{\aval{\emptyset}{\top}}); (x_2, \atval{\emptyset}{\aval{\emptyset}{\top}})\}} }
+$$
+$$
+\inferrule [am-error]
+{ \forall C. v^{a} \neq C\\
+  \forall D. v^{a} \neq D(\_)\\
+  v^{a} \neq (\_, \_)\\
+  v^{a} \neq \top
+}
+{ \isfilteredta{\atval{td^{a}}{\aval{d^{a}}{v^{a}}}}{p}{\times} }
+$$
+
+
+\end{document}
