@@ -80,8 +80,7 @@ endif
 #                    #
 ######################
 
-VFILES:=atval_of_correctness.v\
-  abstract_semantics.v\
+VFILES:=abstract_semantics.v\
   atval_ctval_conversion.v\
   abstract_values.v\
   ctval_order.v\

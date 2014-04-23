@@ -212,11 +212,3 @@ Proof.
   assumption.
 Qed.
 
-
-Theorem injection_completeness :
-  forall l vl c c' e v,
-    label_does_not_appear_in_expr l c' e
-    -> c = oitenv_to_env c'
-    -> val_of_with_injection l vl c' e v
-    -> val_of c e v.
-Admitted. (* injection_completeness *)

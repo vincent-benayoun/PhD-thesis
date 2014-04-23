@@ -50,4 +50,3 @@ ctval_order.v
 abstract_values.v
 atval_ctval_conversion.v
 abstract_semantics.v
-atval_of_correctness.v
